@@ -1,0 +1,32 @@
+[
+  {
+    "id": 1,
+    "fecha": "2025-05-01",
+    "cliente": "Comerciante Online S.A.",
+    "opinion": "Este sistema ha revolucionado la forma en que analizamos feedback de clientes. Increíble herramienta."
+  },
+  {
+    "id": 2,
+    "fecha": "2025-05-02",
+    "cliente": "TechStore Colombia",
+    "opinion": "Buena interfaz pero necesita optimizarse más para grandes volúmenes de datos."
+  },
+  {
+    "id": 3,
+    "fecha": "2025-05-03",
+    "cliente": "E-commerce Plus",
+    "opinion": "Excelente para automatizar análisis. Ha mejorado nuestro tiempo de respuesta a clientes."
+  },
+  {
+    "id": 4,
+    "fecha": "2025-05-04",
+    "cliente": "Marketplace Digital",
+    "opinion": "Satisfecho con los resultados pero podría mejorar la precisión del análisis de sentimiento."
+  },
+  {
+    "id": 5,
+    "fecha": "2025-05-05",
+    "cliente": "Retail Smart",
+    "opinion": "Un cambio de juego para nuestro equipo de análisis. Recomendado 100%."
+  }
+]
