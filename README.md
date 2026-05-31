@@ -4,6 +4,10 @@ Este sistema modular de Procesamiento de Lenguaje Natural (PLN) ha sido desarrol
 
 El software realiza ingesta por lotes de opiniones de comercio electrónico, aplica normalización avanzada (limpieza, tokenización, remoción de *stop words*, lematización) y clasifica la polaridad del sentimiento, desplegando un dashboard estadístico visual enfocado en la toma de decisiones gerenciales.
 
+## Aporte: Pipeline de Ingeniería
+
+La sección de pipeline implementa la limpieza, tokenización avanzada, remoción de *stop words* y lematización de opiniones en español mediante spaCy. Esta capa prepara los textos normalizados para que puedan ser usados posteriormente por el análisis de sentimiento y las visualizaciones del sistema.
+
 ## Estructura del Repositorio
 
 ```text
