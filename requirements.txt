@@ -12,3 +12,6 @@ openpyxl>=3.1.0     # Para leer y escribir archivos Excel (.xlsx)
 # Visualización de Datos y Dashboard
 matplotlib>=3.7.0   # Para visualización de datos y gráficos de barras/pastel
 wordcloud>=1.9.0    # Para generar nubes de palabras dinámicas
+
+# Ejecución de Pruebas
+pytest>=7.0.0       # Para pruebas unitarias y de integración
