@@ -75,13 +75,63 @@ python -m spacy download es_core_news_lg
 
 > **Nota**: En caso de que la computadora tenga limitaciones de memoria, se recomienda descargar el modelo de tamaño mediano `es_core_news_md` o el de tamaño pequeño `es_core_news_sm` y ajustar el código para cargar ese modelo en lugar del grande.
 
+
+
+## Ingesta de Datos
+
+El sistema incluye un módulo robusto de ingesta de datos que procesa lotes de comentarios desde múltiples fuentes.
+
+### Formatos Soportados
+- **CSV (.csv)**: Archivos de valores separados por comas
+- **Excel (.xlsx)**: Archivos de hojas de cálculo
+- **JSON (.json)**: Archivos de notación de objetos JavaScript
+- **TXT (.txt)**: Archivos de texto plano
+
+
+
+### Archivos de Ejemplo en data/samples/
+
+| Archivo | Registros | Formato |
+|---------|-----------|---------|
+| `comentarios_clientes.csv` | 15 | CSV |
+| `resenas_productos.xlsx` | 8 | Excel |
+| `opiniones_empresas.json` | 5 | JSON |
+| `resenas_clientes.txt` | 17 | TXT |
+
+## Flujo Completo: De Principio a Fin
+
+El sistema incluye el comando **`process`** que ejecuta el pipeline completo en un único comando:
+
+
+
 ## Ejecución del Sistema
 
 Para arrancar el sistema, simplemente corra el siguiente comando en la terminal con el entorno virtual activo:
 
-```bash
-python main.py
+# Procesar un archivo cualquiera
+python main.py process --file data/samples/comentarios_clientes.csv
+
+# Mostrar también los textos procesados por el pipeline
+python main.py process --file data/samples/resenas_productos.xlsx --show-processed
+
+# Otros formatos (todos funcionan igual)
+python main.py process --file data/samples/opiniones_empresas.json
+python main.py process --file data/samples/resenas_clientes.txt
 ```
+
+
+### Características Principales
+
+- ✅ **Detección automática de columnas**: Busca automáticamente columnas con textos
+- ✅ **Filtrado de valores nulos**: Elimina automáticamente registros vacíos
+- ✅ **Estadísticas**: Calcula caracteres, palabras y distribución
+- ✅ **Manejo robusto de errores**: Valida formatos y existencia de archivos
+- ✅ **Procesamiento por lotes**: Simula auditoría real de múltiples registros
+- ✅ **Codificación UTF-8**: Soporta caracteres acentuados y especiales
+- ✅ **Normalización en Spanish**: Lematización y limpieza con spaCy
+- ✅ **Análisis con BETO**: Modelo BERT especializado para sentimientos en español
+- ✅ **Resultados emoji-enhanced**: Indicadores visuales de sentimiento 😊😐😞
+
 
 ## Ejecución de Pruebas Unitarias
 Para ejecutar las pruebas unitarias, asegúrese de que el entorno virtual esté activo y ejecute:
