@@ -1,0 +1,14 @@
+# Motor de PLN y Procesamiento de Lenguaje
+transformers>=4.0.0 # Para modelos de lenguaje preentrenados
+torch>=1.7.0        # Requerido por transformers para el backend de PyTorch (Único backend necesario)
+sentencepiece       # Requerido internamente por el tokenizador del modelo BETO
+click>=8.0.0        # Para la creación de interfaces de línea de comandos (Menús interactivos)
+spacy>=3.7.0        # Para procesamiento de lenguaje natural avanzado (Pipeline lingüístico)
+
+# Ingesta y Manipulación de Datos
+pandas>=2.0.0       # Para manipulación de datos en formato tabular (Auditoría de clientes)
+openpyxl>=3.1.0     # Para leer y escribir archivos Excel (.xlsx)
+
+# Visualización de Datos y Dashboard
+matplotlib>=3.7.0   # Para visualización de datos y gráficos de barras/pastel
+wordcloud>=1.9.0    # Para generar nubes de palabras dinámicas
