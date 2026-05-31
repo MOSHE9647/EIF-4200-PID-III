@@ -1,8 +1,7 @@
 import logging
 from transformers import pipeline
 
-# Configuración básica de logs para cumplir con el manejo de errores del PID
-logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
+logger = logging.getLogger(__name__)
 
 class SentimentAnalyzer:
     """
@@ -15,7 +14,7 @@ class SentimentAnalyzer:
         optimizado para español (BETO), ideal para detectar negaciones y matices.
         """
         try:
-            logging.info(f"Cargando modelo de análisis de sentimiento: {model_name}...")
+            logger.info("Cargando modelo de análisis de sentimiento: %s...", model_name)
             self.sentiment_pipe = pipeline(
                 "sentiment-analysis",
                 model=model_name
@@ -25,10 +24,10 @@ class SentimentAnalyzer:
                 "NEU": "NEUTRO",
                 "NEG": "NEGATIVO"
             }
-            logging.info("Modelo de sentimiento cargado exitosamente.")
+            logger.info("Modelo de sentimiento cargado exitosamente.")
         except Exception as e:
-            logging.error(f"Error al cargar el modelo de Transformers: {e}")
-            raise RuntimeError(f"No se pudo inicializar el motor de sentimiento: {e}")
+            logger.error("Error al cargar el modelo de Transformers", exc_info=True)
+            raise RuntimeError("No se pudo inicializar el motor de sentimiento") from e
 
     def analyze_text(self, text: str) -> dict:
         """
@@ -57,7 +56,7 @@ class SentimentAnalyzer:
                 "score": round(score * 100, 2)
             }
         except Exception as e:
-            logging.error(f"Error procesando el texto '{text[:30]}...': {e}")
+            logger.error("Error procesando el texto '%s...': %s", text[:30], e, exc_info=True)
             return {
                 "label": "NEUTRO",
                 "score": 0.0,
@@ -70,7 +69,7 @@ class SentimentAnalyzer:
         facilitando la integración con el módulo de ingesta de datos (data.py).
         """
         if not isinstance(texts, list):
-            logging.error("Se esperaba una lista de textos para el procesamiento por lotes.")
+            logger.error("Se esperaba una lista de textos para el procesamiento por lotes.")
             return []
             
         results = []

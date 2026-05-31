@@ -88,7 +88,7 @@ def test_analyze_batch_non_list(analyzer):
     res = analyzer.analyze_batch("no-es-una-lista")
     assert res == []
 
-def test_mapping_and_rounding_with_mock(monkeypatch):
+def test_mapping_and_rounding_with_mock():
     # Prueba determinista que mockea el pipeline para validar:
     # - el mapeo de etiquetas (POS->POSITIVO)
     # - el escalado y redondeo del score (0.87321 -> 87.32)
