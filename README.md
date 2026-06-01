@@ -18,9 +18,12 @@ EIF-4200-PID-III/
 │   ├── sentiment.py       # Clase para análisis de polaridad (Positivo/Neutro/Negativo)
 │   └── dashboard.py       # Clase para generación de gráficos y WordCloud
 │
+├── tests/                 # Pruebas unitarias para cada módulo con pytest
+│
 ├── main.py                # Punto de entrada de la aplicación (Consola/Orquestador)
 ├── requirements.txt       # Dependencias del proyecto
 ├── .gitignore             # Archivos omitidos en Git
+├── pytest.ini             # Configuración de pytest para pruebas unitarias
 └── README.md              # Documentación de instalación y uso
 ```
 
@@ -74,4 +77,11 @@ Para arrancar el sistema, simplemente corra el siguiente comando en la terminal 
 
 ```bash
 python main.py
+```
+
+## Ejecución de Pruebas Unitarias
+Para ejecutar las pruebas unitarias, asegúrese de que el entorno virtual esté activo y ejecute:
+
+```bash
+pytest -q
 ```
