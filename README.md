@@ -139,3 +139,19 @@ Para ejecutar las pruebas unitarias, asegúrese de que el entorno virtual esté 
 ```bash
 pytest -q
 ```
+
+
+# 1️⃣ ACTIVAR EL AMBIENTE CONDA
+conda activate PIDIII
+
+# 2️⃣ INSTALAR DEPENDENCIAS (si no lo has hecho)
+pip install -r requirements.txt
+
+# 3️⃣ INSTALAR DEPENDENCIAS ADICIONALES PARA EL DASHBOARD
+pip install streamlit plotly seaborn
+
+# 4️⃣ DESCARGAR MODELOS SPACY Y TRANSFORMERS (primera vez solo)
+python -m spacy download es_core_news_lg
+
+# 5️⃣ EJECUTAR EL DASHBOARD
+python -m streamlit run app_dashboard.py
