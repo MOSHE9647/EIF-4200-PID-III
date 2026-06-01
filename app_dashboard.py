@@ -22,7 +22,6 @@ from dashboard import SentimentMetrics, DashboardVisualizer
 # Configurar página
 st.set_page_config(
     page_title="Dashboard de Análisis de Sentimientos",
-    page_icon="📊",
     layout="wide",
     initial_sidebar_state="expanded"
 )
@@ -271,37 +270,37 @@ def main():
     """Función principal de la aplicación."""
     
     # Header
-    st.markdown("<h1 class='header-title'>📊 Dashboard de Análisis de Sentimientos</h1>", unsafe_allow_html=True)
+    st.markdown("<h1 class='header-title'> Dashboard de Análisis de Sentimientos</h1>", unsafe_allow_html=True)
     st.markdown("---")
     
     # Sidebar
-    st.sidebar.markdown("## ⚙️ Configuración")
+    st.sidebar.markdown("##  Configuración")
     
-    with st.spinner("🔄 Cargando componentes..."):
+    with st.spinner(" Cargando componentes..."):
         analyzer, pipeline = load_components()
     
-    st.sidebar.success("✅ Componentes cargados")
+    st.sidebar.success(" Componentes cargados")
     
     # Opción de carga de datos
     data_source = st.sidebar.radio(
         "Selecciona la fuente de datos:",
-        ["📁 Cargar desde samples/", "📤 Cargar archivo personalizado", "🔨 Usar datos de ejemplo"]
+        [" Cargar desde samples/", " Cargar archivo personalizado", "🔨 Usar datos de ejemplo"]
     )
     
     all_texts = []
     files_loaded = []
     
-    if data_source == "📁 Cargar desde samples/":
-        with st.spinner("📂 Cargando datos de samples/..."):
+    if data_source == " Cargar desde samples/":
+        with st.spinner(" Cargando datos de samples/..."):
             all_texts, files_loaded = load_data_from_samples()
         
         if files_loaded:
-            st.sidebar.success(f"✅ Se cargaron {len(files_loaded)} archivo(s)")
-            with st.sidebar.expander("📋 Archivos cargados"):
+            st.sidebar.success(f" Se cargaron {len(files_loaded)} archivo(s)")
+            with st.sidebar.expander(" Archivos cargados"):
                 for file in files_loaded:
                     st.text(f"• {file}")
     
-    elif data_source == "📤 Cargar archivo personalizado":
+    elif data_source == " Cargar archivo personalizado":
         uploaded_file = st.sidebar.file_uploader(
             "Sube un archivo (CSV, Excel, JSON, TXT)",
             type=['csv', 'xlsx', 'json', 'txt']
@@ -316,9 +315,9 @@ def main():
             try:
                 ingestion = DataIngestion(temp_path)
                 all_texts = ingestion.load_data()
-                st.sidebar.success(f"✅ Se cargaron {len(all_texts)} registros")
+                st.sidebar.success(f"Se cargaron {len(all_texts)} registros")
             except Exception as e:
-                st.sidebar.error(f"❌ Error: {e}")
+                st.sidebar.error(f" Error: {e}")
     
     else:  # Datos de ejemplo
         all_texts = [
@@ -333,19 +332,19 @@ def main():
             "Servicio impecable, muy satisfecho.",
             "Horrible experiencia de compra.",
         ]
-        st.sidebar.info("ℹ️ Usando datos de ejemplo")
+        st.sidebar.info(" Usando datos de ejemplo")
     
     if not all_texts:
-        st.warning("⚠️ No hay datos para analizar. Por favor carga datos.")
+        st.warning(" No hay datos para analizar. Por favor carga datos.")
         return
     
     # Mostrar resumen de datos
     st.sidebar.markdown("---")
-    st.sidebar.markdown("### 📊 Resumen de Datos")
+    st.sidebar.markdown("### Resumen de Datos")
     st.sidebar.metric("Total de textos", len(all_texts))
     
     # Procesar datos
-    if st.sidebar.button("🚀 Procesar y Analizar", key="process_btn"):
+    if st.sidebar.button(" Procesar y Analizar", key="process_btn"):
         progress_bar = st.progress(0)
         status_text = st.empty()
         
@@ -374,15 +373,15 @@ def main():
             
             status_text.empty()
             progress_bar.empty()
-            st.success("✅ ¡Análisis completado!")
+            st.success(" ¡Análisis completado!")
             
         except Exception as e:
-            st.error(f"❌ Error en el análisis: {e}")
+            st.error(f" Error en el análisis: {e}")
     
     # Mostrar resultados si están disponibles
     if 'results' in st.session_state and st.session_state.processed:
         st.markdown("---")
-        st.markdown("## 📈 Resultados del Análisis")
+        st.markdown("##  Resultados del Análisis")
         
         # Métricas principales
         metrics = st.session_state.metrics
@@ -391,26 +390,26 @@ def main():
         col1, col2, col3, col4 = st.columns(4)
         
         with col1:
-            st.metric("📝 Total de Textos", summary["total_reviews"])
+            st.metric(" Total de Textos", summary["total_reviews"])
         
         with col2:
             dist = summary["distribution"]
             positivos = dist.get('POSITIVO', 0)
-            st.metric("😊 Sentimiento Positivo", f"{positivos:.1f}%")
+            st.metric(" Sentimiento Positivo", f"{positivos:.1f}%")
         
         with col3:
             negativos = dist.get('NEGATIVO', 0)
-            st.metric("😞 Sentimiento Negativo", f"{negativos:.1f}%")
+            st.metric(" Sentimiento Negativo", f"{negativos:.1f}%")
         
         with col4:
             neutros = dist.get('NEUTRO', 0)
-            st.metric("😐 Sentimiento Neutro", f"{neutros:.1f}%")
+            st.metric(" Sentimiento Neutro", f"{neutros:.1f}%")
         
         st.markdown("---")
         
         # Gráficos
         tab1, tab2, tab3, tab4, tab5 = st.tabs(
-            ["📊 Barras", "🥧 Pastel", "☁️ Nube de Palabras", "📋 Top Palabras", "📉 Scores"]
+            ["📊 Barras", " Pastel", " Nube de Palabras", " Top Palabras", " Scores"]
         )
         
         with tab1:
@@ -439,7 +438,7 @@ def main():
         st.markdown("---")
         
         # Tabla de resultados detallados
-        st.markdown("## 📋 Resultados Detallados")
+        st.markdown("##  Resultados Detallados")
         
         results_df = pd.DataFrame({
             'Texto': all_texts,
@@ -452,7 +451,7 @@ def main():
         # Descargar resultados
         csv = results_df.to_csv(index=False).encode('utf-8')
         st.download_button(
-            label="⬇️ Descargar resultados (CSV)",
+            label=" Descargar resultados (CSV)",
             data=csv,
             file_name="analisis_sentimientos.csv",
             mime="text/csv"
