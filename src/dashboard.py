@@ -1,517 +1,324 @@
 """
-Dashboard de Visualización y Métricas.
-
-Este módulo proporciona visualizaciones dinámicas para el análisis de sentimientos:
-- Nube de palabras (WordCloud) con términos más frecuentes
-- Gráficos de distribución de sentimientos (barras y pastel)
-- Métricas agregadas y estadísticas de análisis
+Plataforma de Auditoría Analítica - Dashboard de Visualización Avanzado
+Implementa un diseño de "Tema Universal Agnóstico" que responde automáticamente 
+a la configuración nativa de Streamlit (Claro/Oscuro).
 """
 
-import logging
-from typing import Optional
-from collections import Counter
-
+import streamlit as st
+import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
 from wordcloud import WordCloud
+from collections import Counter
+from pathlib import Path
+import sys
+import logging
 
-logger = logging.getLogger(__name__)
+# Configuración de rutas e importaciones internas del proyecto
+sys.path.insert(0, str(Path(__file__).parent))
+from data import DataIngestion
+from pipeline import EngineeringPipeline
+from sentiment import SentimentAnalyzer
 
+# Configuración de página de Streamlit
+st.set_page_config(
+    page_title="Dashboard de Análisis de Sentimientos",
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
 
-class SentimentMetrics:
+# Inicializar estados de sesión para navegación ininterrumpida
+if "analizado" not in st.session_state:
+    st.session_state.analizado = False
+    st.session_state.raw_texts = []
+    st.session_state.clean_texts = []
+    st.session_state.lemmas = []
+    st.session_state.results = []
+    st.session_state.file_name = ""
+
+# Inyección de estilos CSS - Tema Universal mediante translucidez y herencia
+st.markdown("""
+    <style>
+    .metric-card {
+        background-color: rgba(130, 130, 130, 0.15); /* Cristal Translúcido: se adapta al fondo nativo */
+        padding: 22px;
+        border-radius: 12px;
+        margin: 10px 0;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.04);
+        border-left: 6px solid #0066cc;
+        color: inherit; /* Hereda texto blanco o negro directamente de Streamlit */
+        backdrop-filter: blur(5px);
+    }
+    .metric-title {
+        font-size: 13px;
+        color: inherit;
+        opacity: 0.75;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.8px;
+    }
+    .metric-value {
+        font-size: 32px;
+        font-weight: bold;
+        color: inherit;
+        margin-top: 6px;
+    }
+    </style>
+""", unsafe_allow_html=True)
+
+def configurar_graficos_universales():
     """
-    Clase para calcular métricas agregadas de análisis de sentimientos.
+    Motor de renderizado agnóstico. Elimina los fondos de Matplotlib (Canal Alfa 0)
+    y utiliza colores neutros para no tener que refrescar la web al cambiar de tema.
     """
-    
-    def __init__(self, results: list[dict]) -> None:
-        """
-        Inicializa métricas basadas en resultados de análisis.
-        
-        Args:
-            results: Lista de diccionarios con sentimientos y scores.
-        """
-        self.results = results
-        self.total_reviews = len(results)
-        self._calculate_metrics()
-    
-    def _calculate_metrics(self) -> None:
-        """Calcula las métricas de distribución."""
-        self.sentiment_counts = Counter()
-        self.sentiment_scores = {}
-        
-        for result in self.results:
-            label = result.get("label", "NEUTRO")
-            score = result.get("score", 0.0)
-            
-            self.sentiment_counts[label] += 1
-            
-            if label not in self.sentiment_scores:
-                self.sentiment_scores[label] = []
-            self.sentiment_scores[label].append(score)
-    
-    def get_distribution(self) -> dict[str, float]:
-        """
-        Obtiene la distribución porcentual de sentimientos.
-        
-        Returns:
-            Diccionario con etiquetas y porcentajes.
-        """
-        if self.total_reviews == 0:
-            return {}
-        
-        return {
-            label: round((count / self.total_reviews) * 100, 2)
-            for label, count in self.sentiment_counts.items()
-        }
-    
-    def get_average_scores(self) -> dict[str, float]:
-        """
-        Obtiene los scores promedio por sentimiento.
-        
-        Returns:
-            Diccionario con etiquetas y scores promedio.
-        """
-        return {
-            label: round(sum(scores) / len(scores), 2)
-            for label, scores in self.sentiment_scores.items()
-            if scores
-        }
-    
-    def get_summary(self) -> dict:
-        """
-        Obtiene resumen completo de métricas.
-        
-        Returns:
-            Diccionario con estadísticas generales.
-        """
-        avg_scores = self.get_average_scores()
-        
-        return {
-            "total_reviews": self.total_reviews,
-            "distribution": self.get_distribution(),
-            "average_scores": avg_scores,
-            "sentiment_counts": dict(self.sentiment_counts),
-        }
-
+    sns.set_theme(style="whitegrid")
+    plt.rcParams.update({
+        "figure.facecolor": (0, 0, 0, 0),    # Fondo de figura 100% transparente
+        "axes.facecolor": (0, 0, 0, 0),      # Fondo de plano cartesiano 100% transparente
+        "savefig.facecolor": (0, 0, 0, 0),   # Guardado Transparente
+        "text.color": "#808495",           # Gris neutro equilibrado para claros/oscuros
+        "axes.labelcolor": "#808495",
+        "xtick.color": "#808495",
+        "ytick.color": "#808495",
+        "axes.edgecolor": "#808495",
+        "grid.color": "#808495",
+        "grid.alpha": 0.2
+    })
 
 class DashboardVisualizer:
-    """
-    Clase responsable de generar visualizaciones del análisis de sentimientos.
-    """
-    
-    def __init__(self, figsize: tuple = (15, 10), style: str = "whitegrid") -> None:
-        """
-        Inicializa el visualizador.
+    """Soporte gráfico universal con renderizado dinámico (RGBA)."""
+    def __init__(self, results, lemmas):
+        self.results = results
+        self.lemmas = lemmas
+        self.counts = Counter([r.get("label", "NEUTRO") for r in self.results])
+        self.palette = {'POSITIVO': '#2ca02c', 'NEGATIVO': '#d62728', 'NEUTRO': '#1f77b4'}
+        configurar_graficos_universales()
+
+    def plot_barras(self):
+        fig, ax = plt.subplots(figsize=(7, 4.5))
+        labels = list(self.counts.keys())
+        values = list(self.counts.values())
+        colors = [self.palette.get(l, '#7f7f7f') for l in labels]
         
-        Args:
-            figsize: Tamaño de las figuras (ancho, alto).
-            style: Estilo de seaborn para los gráficos.
-        """
-        self.figsize = figsize
-        sns.set_style(style)
-        sns.set_palette("husl")
-        logger.info("Dashboard visualizador inicializado con estilo: %s", style)
-    
-    def plot_sentiment_distribution(
-        self,
-        metrics: SentimentMetrics,
-        chart_type: str = "bar",
-        output_path: Optional[str] = None
-    ) -> None:
-        """
-        Genera un gráfico de distribución de sentimientos.
+        sns.barplot(x=labels, y=values, palette=colors, ax=ax)
+        ax.set_title("Volumen de Opiniones por Sentimiento", fontsize=12, weight='bold', pad=12)
+        ax.set_ylabel("Cantidad")
+        sns.despine(left=True, bottom=True)
+        fig.tight_layout()
+        return fig
+
+    def plot_pastel(self):
+        fig, ax = plt.subplots(figsize=(5, 5))
+        labels = list(self.counts.keys())
+        values = list(self.counts.values())
+        colors = [self.palette.get(l, '#7f7f7f') for l in labels]
         
-        Args:
-            metrics: Instancia de SentimentMetrics con datos procesados.
-            chart_type: Tipo de gráfico ("bar", "pie" o "both").
-            output_path: Ruta para guardar la imagen (opcional).
-        """
-        if metrics.total_reviews == 0:
-            logger.warning("No hay datos para visualizar.")
-            return
+        if sum(values) == 0: return fig
         
-        distribution = metrics.get_distribution()
-        labels = list(distribution.keys())
-        values = list(distribution.values())
-        
-        if chart_type in ["bar", "both"]:
-            self._plot_bar_chart(labels, values, output_path if chart_type == "bar" else None)
-        
-        if chart_type in ["pie", "both"]:
-            self._plot_pie_chart(labels, values, output_path if chart_type == "pie" else None)
-        
-        if chart_type == "both":
-            self._plot_combined(labels, values, output_path)
-    
-    def _plot_bar_chart(
-        self,
-        labels: list,
-        values: list,
-        output_path: Optional[str] = None
-    ) -> None:
-        """Crea un gráfico de barras."""
-        plt.figure(figsize=self.figsize)
-        colors = sns.color_palette("husl", len(labels))
-        bars = plt.bar(labels, values, color=colors, edgecolor="black", linewidth=1.5)
-        
-        # Añadir valores en las barras
-        for bar, value in zip(bars, values):
-            height = bar.get_height()
-            plt.text(
-                bar.get_x() + bar.get_width() / 2.0,
-                height,
-                f"{value:.1f}%",
-                ha="center",
-                va="bottom",
-                fontweight="bold",
-                fontsize=11
-            )
-        
-        plt.title("Distribución de Sentimientos", fontsize=16, fontweight="bold", pad=20)
-        plt.xlabel("Sentimiento", fontsize=12, fontweight="bold")
-        plt.ylabel("Porcentaje (%)", fontsize=12, fontweight="bold")
-        plt.ylim(0, max(values) * 1.15)
-        plt.tight_layout()
-        
-        if output_path:
-            plt.savefig(output_path, dpi=300, bbox_inches="tight")
-            logger.info("Gráfico de barras guardado en: %s", output_path)
-        
-        plt.close()
-    
-    def _plot_pie_chart(
-        self,
-        labels: list,
-        values: list,
-        output_path: Optional[str] = None
-    ) -> None:
-        """Crea un gráfico de pastel."""
-        plt.figure(figsize=(10, 8))
-        colors = sns.color_palette("husl", len(labels))
-        
-        wedges, texts, autotexts = plt.pie(
-            values,
-            labels=labels,
-            colors=colors,
-            autopct="%1.1f%%",
-            startangle=90,
-            explode=[0.05] * len(labels),
-            textprops={"fontsize": 11, "fontweight": "bold"}
+        wedges, texts, autotexts = ax.pie(
+            values, labels=labels, autopct='%1.1f%%', colors=colors, startangle=140,
+            wedgeprops={'edgecolor': '#808495', 'linewidth': 0.5}
         )
         
-        # Mejorar apariencia del texto de porcentaje
+        ax.set_title("Proporción de Sentimientos", fontsize=12, weight='bold', pad=12)
+        
+        # Ajuste inteligente de legibilidad interna/externa del gráfico
+        for text in texts:
+            text.set_color("#808495")
         for autotext in autotexts:
             autotext.set_color("white")
-            autotext.set_fontsize(12)
-            autotext.set_fontweight("bold")
+            autotext.set_weight("bold")
+            
+        fig.tight_layout()
+        return fig
+
+    def plot_wordcloud(self):
+        if not self.lemmas: return None
+        texto = " ".join(self.lemmas)
         
-        plt.title("Distribución de Sentimientos", fontsize=16, fontweight="bold", pad=20)
-        plt.tight_layout()
+        # Generación de la Nube Semántica en Formato RGBA (Permite el paso del tema base)
+        wc = WordCloud(
+            width=900, height=450, 
+            background_color=None, mode="RGBA", 
+            colormap="plasma", max_words=100
+        ).generate(texto)
         
-        if output_path:
-            plt.savefig(output_path, dpi=300, bbox_inches="tight")
-            logger.info("Gráfico de pastel guardado en: %s", output_path)
+        fig, ax = plt.subplots(figsize=(10, 5))
+        ax.imshow(wc, interpolation='bilinear')
+        ax.axis('off')
+        fig.tight_layout()
+        return fig
+
+    def plot_top_lemmas(self, top_n):
+        if not self.lemmas: return None
+        freq = Counter(self.lemmas).most_common(top_n)
+        words = [item[0] for item in freq]
+        counts = [item[1] for item in freq]
         
-        plt.close()
+        fig, ax = plt.subplots(figsize=(8, 4.5))
+        
+        sns.barplot(x=counts, y=words, palette="viridis", ax=ax)
+        ax.set_title(f"Top {top_n} Palabras Más Frecuentes (Lemmas)", fontsize=12, weight='bold', pad=12)
+        ax.set_xlabel("Frecuencia")
+        sns.despine(left=True, bottom=True)
+        fig.tight_layout()
+        return fig
+
+    def plot_scores_distribution(self):
+        if not self.results: return None
+        scores = [r.get("score", 0.0) for r in self.results]
+        
+        fig, ax = plt.subplots(figsize=(8, 4))
+        sns.histplot(scores, kde=True, color="#0066cc", bins=15, ax=ax)
+        ax.set_title("Distribución del Nivel de Confianza del Modelo", fontsize=12, weight='bold', pad=12)
+        ax.set_xlabel("Confianza (%)")
+        ax.set_ylabel("Frecuencia")
+        sns.despine(left=True, bottom=True)
+        fig.tight_layout()
+        return fig
+
+def main():
+    st.title("🚀 Sistema de Inteligencia Artificial - Dashboard PLN")
+    st.markdown("Auditoría de feedback masivo e inferencia lingüística avanzada.")
     
-    def _plot_combined(
-        self,
-        labels: list,
-        values: list,
-        output_path: Optional[str] = None
-    ) -> None:
-        """Crea una vista combinada (barras y pastel)."""
-        fig, axes = plt.subplots(1, 2, figsize=(16, 6))
-        colors = sns.color_palette("husl", len(labels))
-        
-        # Gráfico de barras
-        bars = axes[0].bar(labels, values, color=colors, edgecolor="black", linewidth=1.5)
-        for bar, value in zip(bars, values):
-            height = bar.get_height()
-            axes[0].text(
-                bar.get_x() + bar.get_width() / 2.0,
-                height,
-                f"{value:.1f}%",
-                ha="center",
-                va="bottom",
-                fontweight="bold",
-                fontsize=11
-            )
-        
-        axes[0].set_title("Distribución (Barras)", fontsize=14, fontweight="bold")
-        axes[0].set_xlabel("Sentimiento", fontsize=11, fontweight="bold")
-        axes[0].set_ylabel("Porcentaje (%)", fontsize=11, fontweight="bold")
-        axes[0].set_ylim(0, max(values) * 1.15)
-        
-        # Gráfico de pastel
-        wedges, texts, autotexts = axes[1].pie(
-            values,
-            labels=labels,
-            colors=colors,
-            autopct="%1.1f%%",
-            startangle=90,
-            explode=[0.05] * len(labels),
-            textprops={"fontsize": 10, "fontweight": "bold"}
+    # ------------------ SECCIÓN LATERIAL ------------------
+    st.sidebar.header("📁 Control de Datos")
+    origen_datos = st.sidebar.radio("Origen de los datos:", ["Lotes del Servidor (Samples)", "Subir mi propio archivo"])
+    
+    ruta_final_analisis = None
+    nombre_archivo_activo = ""
+    
+    if origen_datos == "Lotes del Servidor (Samples)":
+        data_dir = Path("data/samples")
+        try:
+            data_dir.mkdir(parents=True, exist_ok=True)
+            archivos_validos = [f.name for f in data_dir.iterdir() if f.suffix.lower() in ['.csv', '.xlsx', '.json', '.txt']]
+        except Exception:
+            archivos_validos = []
+
+        if archivos_validos:
+            archivo_seleccionado = st.sidebar.selectbox("Seleccione lote del servidor:", archivos_validos)
+            if archivo_seleccionado:
+                ruta_final_analisis = data_dir / archivo_seleccionado
+                nombre_archivo_activo = archivo_seleccionado
+        else:
+            st.sidebar.info("No se hallaron archivos en `data/samples/`.")
+    else:
+        archivo_usuario = st.sidebar.file_uploader(
+            "Cargue su archivo de auditoría:", 
+            type=["csv", "xlsx", "json", "txt"]
         )
-        
-        for autotext in autotexts:
-            autotext.set_color("white")
-            autotext.set_fontweight("bold")
-        
-        axes[1].set_title("Distribución (Pastel)", fontsize=14, fontweight="bold")
-        
-        plt.suptitle("Análisis de Distribución de Sentimientos", fontsize=16, fontweight="bold", y=1.00)
-        plt.tight_layout()
-        
-        if output_path:
-            plt.savefig(output_path, dpi=300, bbox_inches="tight")
-            logger.info("Gráfico combinado guardado en: %s", output_path)
-        
-        plt.close()
-    
-    def plot_wordcloud(
-        self,
-        lemmas: list[str],
-        max_words: int = 100,
-        output_path: Optional[str] = None,
-        width: int = 1200,
-        height: int = 600
-    ) -> None:
-        """
-        Genera una nube de palabras con los términos más frecuentes (lematizados).
-        
-        Args:
-            lemmas: Lista de palabras lematizadas del análisis.
-            max_words: Número máximo de palabras en la nube.
-            output_path: Ruta para guardar la imagen (opcional).
-            width: Ancho de la nube.
-            height: Alto de la nube.
-        """
-        if not lemmas:
-            logger.warning("No hay palabras para generar la nube.")
-            return
-        
-        # Crear texto único para la nube
-        text = " ".join(lemmas)
-        
-        # Generar nube
-        wordcloud = WordCloud(
-            width=width,
-            height=height,
-            background_color="white",
-            colormap="viridis",
-            max_words=max_words,
-            relative_scaling=0.5,
-            min_font_size=10,
-            collocations=False,
-            prefer_horizontal=0.7
-        ).generate(text)
-        
-        # Visualizar
-        plt.figure(figsize=(15, 8))
-        plt.imshow(wordcloud, interpolation="bilinear")
-        plt.axis("off")
-        plt.title("Nube de Palabras - Términos Más Frecuentes", fontsize=16, fontweight="bold", pad=20)
-        plt.tight_layout()
-        
-        if output_path:
-            plt.savefig(output_path, dpi=300, bbox_inches="tight")
-            logger.info("Nube de palabras guardada en: %s", output_path)
-        
-        plt.close()
-    
-    def plot_top_lemmas(
-        self,
-        lemmas: list[str],
-        top_n: int = 20,
-        output_path: Optional[str] = None
-    ) -> None:
-        """
-        Genera un gráfico de los lemmas más frecuentes.
-        
-        Args:
-            lemmas: Lista de palabras lematizadas.
-            top_n: Número de palabras principales a mostrar.
-            output_path: Ruta para guardar la imagen (opcional).
-        """
-        if not lemmas:
-            logger.warning("No hay palabras para visualizar.")
-            return
-        
-        # Contar frecuencias
-        lemma_counts = Counter(lemmas)
-        top_lemmas = lemma_counts.most_common(top_n)
-        
-        if not top_lemmas:
-            return
-        
-        # Separar etiquetas y valores
-        words, frequencies = zip(*top_lemmas)
-        
-        # Crear gráfico
-        plt.figure(figsize=(12, 8))
-        colors = sns.color_palette("husl", len(words))
-        bars = plt.barh(words, frequencies, color=colors, edgecolor="black", linewidth=1.2)
-        
-        # Añadir valores en las barras
-        for bar, freq in zip(bars, frequencies):
-            width = bar.get_width()
-            plt.text(
-                width,
-                bar.get_y() + bar.get_height() / 2.0,
-                f"{int(freq)}",
-                ha="left",
-                va="center",
-                fontweight="bold",
-                fontsize=10
-            )
-        
-        plt.title(f"Top {top_n} Palabras Más Frecuentes", fontsize=14, fontweight="bold", pad=20)
-        plt.xlabel("Frecuencia", fontsize=12, fontweight="bold")
-        plt.ylabel("Palabra", fontsize=12, fontweight="bold")
-        plt.tight_layout()
-        
-        if output_path:
-            plt.savefig(output_path, dpi=300, bbox_inches="tight")
-            logger.info("Gráfico de palabras frecuentes guardado en: %s", output_path)
-        
-        plt.close()
-    
-    def plot_sentiment_scores_distribution(
-        self,
-        metrics: SentimentMetrics,
-        output_path: Optional[str] = None
-    ) -> None:
-        """
-        Visualiza la distribución de scores promedio por sentimiento.
-        
-        Args:
-            metrics: Instancia de SentimentMetrics con datos procesados.
-            output_path: Ruta para guardar la imagen (opcional).
-        """
-        avg_scores = metrics.get_average_scores()
-        
-        if not avg_scores:
-            logger.warning("No hay datos de scores para visualizar.")
-            return
-        
-        labels = list(avg_scores.keys())
-        scores = list(avg_scores.values())
-        
-        plt.figure(figsize=self.figsize)
-        colors = sns.color_palette("coolwarm", len(labels))
-        bars = plt.bar(labels, scores, color=colors, edgecolor="black", linewidth=1.5)
-        
-        # Añadir valores en las barras
-        for bar, score in zip(bars, scores):
-            height = bar.get_height()
-            plt.text(
-                bar.get_x() + bar.get_width() / 2.0,
-                height,
-                f"{score:.2f}",
-                ha="center",
-                va="bottom",
-                fontweight="bold",
-                fontsize=11
-            )
-        
-        plt.title("Score Promedio por Sentimiento", fontsize=16, fontweight="bold", pad=20)
-        plt.xlabel("Sentimiento", fontsize=12, fontweight="bold")
-        plt.ylabel("Score Promedio", fontsize=12, fontweight="bold")
-        plt.ylim(0, 100)
-        plt.grid(axis="y", alpha=0.3, linestyle="--")
-        plt.tight_layout()
-        
-        if output_path:
-            plt.savefig(output_path, dpi=300, bbox_inches="tight")
-            logger.info("Gráfico de scores guardado en: %s", output_path)
-        
-        plt.close()
+        if archivo_usuario:
+            dir_temporal = Path("data/uploaded_cache")
+            dir_temporal.mkdir(parents=True, exist_ok=True)
+            ruta_final_analisis = dir_temporal / archivo_usuario.name
+            with open(ruta_final_analisis, "wb") as f:
+                f.write(archivo_usuario.getbuffer())
+            nombre_archivo_activo = archivo_usuario.name
 
+    st.sidebar.markdown("---")
+    ejecutar_analisis = st.sidebar.button("Procesar Lote", type="primary")
+    
+    # ------------------ FLUJO DEL PIPELINE ------------------
+    if ejecutar_analisis and ruta_final_analisis:
+        with st.spinner("Ejecutando Pipeline Lingüístico e Inferencia..."):
+            try:
+                ingestion = DataIngestion(ruta_final_analisis)
+                textos = ingestion.load_data()
+                
+                pipeline = EngineeringPipeline()
+                textos_limpios = []
+                lemas_totales = []
+                for t in textos:
+                    out = pipeline.process_text(t)
+                    if out and len(out.clean_text) > 1:
+                        textos_limpios.append(out.clean_text)
+                        lemas_totales.extend(out.lemmas)
+                
+                analyzer = SentimentAnalyzer()
+                resultados = analyzer.analyze_batch(textos_limpios)
+                
+                # Salvaguardando memoria
+                st.session_state.raw_texts = textos
+                st.session_state.clean_texts = textos_limpios
+                st.session_state.lemmas = lemas_totales
+                st.session_state.results = resultados
+                st.session_state.file_name = nombre_archivo_activo
+                st.session_state.analizado = True
+                
+            except Exception as e:
+                st.error(f"Falla crítica en el procesamiento: {e}")
+                logging.getLogger(__name__).error("Excepción en Dashboard", exc_info=True)
 
-def generate_full_dashboard(
-    results: list[dict],
-    lemmas: list[str],
-    output_dir: Optional[str] = None
-) -> None:
-    """
-    Genera un dashboard completo con todas las visualizaciones.
-    
-    Args:
-        results: Lista de resultados de análisis de sentimientos.
-        lemmas: Lista de palabras lematizadas del análisis.
-        output_dir: Directorio para guardar las imágenes (opcional).
-    """
-    logger.info("Generando dashboard completo...")
-    
-    # Calcular métricas
-    metrics = SentimentMetrics(results)
-    
-    # Crear visualizador
-    visualizer = DashboardVisualizer()
-    
-    # Mostrar resumen de métricas
-    summary = metrics.get_summary()
-    logger.info("=" * 60)
-    logger.info("RESUMEN DE ANÁLISIS DE SENTIMIENTOS")
-    logger.info("=" * 60)
-    logger.info("Total de reseñas procesadas: %d", summary["total_reviews"])
-    logger.info("Distribución de sentimientos:")
-    for sentiment, percentage in summary["distribution"].items():
-        logger.info("  %s: %.2f%%", sentiment, percentage)
-    logger.info("Scores promedio por sentimiento:")
-    for sentiment, score in summary["average_scores"].items():
-        logger.info("  %s: %.2f", sentiment, score)
-    logger.info("=" * 60)
-    
-    # Generar visualizaciones
-    output_paths = {
-        "bar": f"{output_dir}/distribucion_sentimientos_barras.png" if output_dir else None,
-        "pie": f"{output_dir}/distribucion_sentimientos_pastel.png" if output_dir else None,
-        "wordcloud": f"{output_dir}/nube_palabras.png" if output_dir else None,
-        "top_lemmas": f"{output_dir}/palabras_frecuentes.png" if output_dir else None,
-        "scores": f"{output_dir}/scores_promedio.png" if output_dir else None,
-    }
-    
-    logger.info("Generando visualizaciones...")
-    
-    # Gráfico de distribución de sentimientos (barras)
-    visualizer.plot_sentiment_distribution(
-        metrics,
-        chart_type="bar",
-        output_path=output_paths["bar"]
-    )
-    
-    # Gráfico de distribución de sentimientos (pastel)
-    visualizer.plot_sentiment_distribution(
-        metrics,
-        chart_type="pie",
-        output_path=output_paths["pie"]
-    )
-    
-    # Nube de palabras
-    visualizer.plot_wordcloud(
-        lemmas,
-        output_path=output_paths["wordcloud"]
-    )
-    
-    # Palabras más frecuentes
-    visualizer.plot_top_lemmas(
-        lemmas,
-        output_path=output_paths["top_lemmas"]
-    )
-    
-    # Scores promedio
-    visualizer.plot_sentiment_scores_distribution(
-        metrics,
-        output_path=output_paths["scores"]
-    )
-    
-    logger.info("Dashboard completamente generado.")
+    # ------------------ RENDERIZADO VISUAL ------------------
+    if st.session_state.analizado:
+        viz = DashboardVisualizer(st.session_state.results, st.session_state.lemmas)
+        
+        total = len(st.session_state.results)
+        col1, col2, col3, col4 = st.columns(4)
+        
+        with col1:
+            st.markdown(f'<div class="metric-card"><div class="metric-title">Total Reseñas</div><div class="metric-value">{total}</div></div>', unsafe_allow_html=True)
+        with col2:
+            st.markdown(f'<div class="metric-card"><div class="metric-title">😊 Reseñas Positivas</div><div class="metric-value">{viz.counts.get("POSITIVO", 0)}</div></div>', unsafe_allow_html=True)
+        with col3:
+            st.markdown(f'<div class="metric-card"><div class="metric-title">😐 Reseñas Neutras</div><div class="metric-value">{viz.counts.get("NEUTRO", 0)}</div></div>', unsafe_allow_html=True)
+        with col4:
+            st.markdown(f'<div class="metric-card"><div class="metric-title">😞 Reseñas Negativas</div><div class="metric-value">{viz.counts.get("NEGATIVO", 0)}</div></div>', unsafe_allow_html=True)
+            
+        st.markdown(f"**Lote bajo auditoría activa:** `{st.session_state.file_name}`")
+        
+        tab1, tab2, tab3, tab4 = st.tabs([
+            "📊 Distribución", 
+            "☁️ Nube de Palabras", 
+            "📈 Palabras más Frecuentes", 
+            "🎯 Confianza"
+        ])
+        
+        # Imprimiendo gráficos con instrucción transparente a Streamlit
+        with tab1:
+            col_g1, col_g2 = st.columns([1.1, 0.9])
+            with col_g1:
+                st.pyplot(viz.plot_barras(), transparent=True)
+            with col_g2:
+                st.pyplot(viz.plot_pastel(), transparent=True)
+                
+        with tab2:
+            fig_wc = viz.plot_wordcloud()
+            if fig_wc:
+                st.pyplot(fig_wc, transparent=True)
+                
+        with tab3:
+            top_n = st.slider("Cantidad de palabras clave a desplegar", 5, 30, 15)
+            fig_top = viz.plot_top_lemmas(top_n)
+            if fig_top:
+                st.pyplot(fig_top, transparent=True)
+                
+        with tab4:
+            fig_scores = viz.plot_scores_distribution()
+            if fig_scores:
+                st.pyplot(fig_scores, transparent=True)
+        
+        st.markdown("---")
+        st.subheader("📋 Detalle General de Auditoría")
+        
+        df_resultados = pd.DataFrame({
+            'Texto Normalizado': st.session_state.clean_texts,
+            'Sentimiento Detectado': [r.get('label', 'NEUTRO') for r in st.session_state.results],
+            'Confianza': [f"{r.get('score', 0.0):.2f}%" for r in st.session_state.results]
+        })
+        
+        st.dataframe(df_resultados, use_container_width=True)
+        
+        csv_data = df_resultados.to_csv(index=False).encode('utf-8')
+        st.download_button(
+            label="💾 Descargar Resultados (CSV)",
+            data=csv_data,
+            file_name=f"auditoria_{st.session_state.file_name.split('.')[0]}.csv",
+            mime="text/csv"
+        )
+    else:
+        st.info("Seleccione o cargue un archivo en el panel izquierdo y presione **'Procesar Lote'**.")
 
-
-__all__ = [
-    "SentimentMetrics",
-    "DashboardVisualizer",
-    "generate_full_dashboard",
-]
+if __name__ == "__main__":
+    main()

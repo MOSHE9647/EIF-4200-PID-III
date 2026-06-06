@@ -1,294 +1,221 @@
 """
 Sistema Inteligente de Análisis de Feedback y Sentimiento del Cliente
-Punto de entrada principal de la aplicación (Orquestador)
+Punto de entrada principal de la aplicación (Orquestador CLI)
 """
 
 import logging
+import subprocess
 import sys
 from pathlib import Path
 import click
 
-# Agregar src al path para importar módulos
+# Agregamos src al path para que los módulos internos se descubran correctamente.
 sys.path.insert(0, str(Path(__file__).parent / "src"))
 
 from data import DataIngestion
 from pipeline import EngineeringPipeline
 from sentiment import SentimentAnalyzer
 
-
 def setup_logging() -> None:
-    """Configura el sistema de logging."""
+    """Configura el sistema de logging para el orquestador."""
     logging.basicConfig(
         level=logging.INFO,
-        format="%(asctime)s - %(levelname)s - %(message)s"
+        format="%(asctime)s - %(levelname)s - %(message)s",
     )
 
+def _list_sample_files() -> None:
+    """Muestra los archivos de ejemplo disponibles en data/samples/."""
+    click.echo("\n[INFO] Archivos disponibles en data/samples/:")
+    data_dir = Path("data/samples")
+    if data_dir.exists():
+        files = list(data_dir.glob("*"))
+        if files:
+            for index, file_path in enumerate(files, 1):
+                click.echo(f"  {index}. {file_path.name}")
+            return
+    click.echo("  No hay archivos de muestra en el directorio.")
+
+def _resolve_input_file(file_path: str | None) -> str:
+    """Resuelve la ruta del archivo; si no se provee, pide seleccionar interactivamente."""
+    if file_path:
+        return file_path
+    
+    _list_sample_files()
+    data_dir = Path("data/samples")
+    if not data_dir.exists() or not list(data_dir.glob("*")):
+        click.echo("\n[ERROR] Se requiere proveer un archivo con --file")
+        sys.exit(1)
+
+    choice = click.prompt("\nSelecciona el número del archivo a procesar", type=int)
+    files = list(data_dir.glob("*"))
+    if 1 <= choice <= len(files):
+        return str(files[choice - 1])
+        
+    click.echo("\n[ERROR] Selección inválida")
+    sys.exit(1)
+
+# ==========================================
+# DEFINICIÓN DEL GRUPO DE COMANDOS CLI
+# ==========================================
 
 @click.group()
 def cli() -> None:
-    """Sistema de Análisis de Sentimiento y Feedback de Clientes."""
+    """Orquestador Principal del Sistema de Análisis PLN."""
     setup_logging()
 
+@cli.command()
+def dashboard() -> None:
+    """Lanza la interfaz de usuario interactiva (Streamlit)."""
+    click.echo("\n[INFO] Iniciando Dashboard Analítico Visual...")
+    click.echo("La interfaz se abrirá en tu navegador predeterminado.")
+    
+    dashboard_path = Path(__file__).parent / "src" / "dashboard.py"
+    
+    if not dashboard_path.exists():
+        click.echo(f"\n[ERROR] No se encontró el archivo del dashboard en {dashboard_path}")
+        return
+        
+    try:
+        subprocess.run([sys.executable, "-m", "streamlit", "run", str(dashboard_path)])
+    except KeyboardInterrupt:
+        click.echo("\n[INFO] Dashboard detenido por el usuario.")
+    except Exception as e:
+        click.echo(f"\n[ERROR] Falla crítica al ejecutar el dashboard: {e}")
 
 @cli.command()
-@click.option(
-    '--file',
-    '-f',
-    type=click.Path(exists=True),
-    help='Ruta del archivo a procesar (CSV, Excel, JSON, TXT)'
-)
+@click.option('--file', '-f', type=click.Path(exists=True), help='Ruta del archivo a analizar.')
 def ingest(file: str) -> None:
-    """
-    Ingesta y carga datos desde archivos.
-    
-    Soporta: CSV, Excel (.xlsx), JSON, TXT
-    """
-    logger = logging.getLogger(__name__)
-    
-    if not file:
-        click.echo("\n Archivos disponibles en data/samples/:")
-        data_dir = Path("data/samples")
-        if data_dir.exists():
-            files = list(data_dir.glob("*"))
-            if files:
-                for i, f in enumerate(files, 1):
-                    click.echo(f"  {i}. {f.name}")
-            else:
-                click.echo("  No hay archivos de muestra")
-        
-        file = click.prompt("\n Ingrese la ruta del archivo")
+    """Extrae datos y muestra métricas sin analizarlos lingüísticamente."""
+    target_file = _resolve_input_file(file)
+    click.echo(f"\n[INFO] Iniciando proceso de ingesta para: {target_file}")
     
     try:
-        # Crear instancia de ingesta
-        ingestion = DataIngestion(file)
-        
-        # Cargar datos
-        click.echo("\n Procesando archivo...")
-        data = ingestion.load_data()
-        
-        # Mostrar estadísticas
+        ingestion = DataIngestion(target_file)
         stats = ingestion.get_stats()
-        click.echo("\n" + "="*60)
-        click.echo(" ESTADÍSTICAS DE DATOS CARGADOS")
-        click.echo("="*60)
-        click.echo(f"✓ Total de registros: {stats['total_registros']}")
-        click.echo(f"✓ Promedio de caracteres: {stats['promedio_caracteres']}")
-        click.echo(f"✓ Mín. caracteres: {stats['min_caracteres']}")
-        click.echo(f"✓ Máx. caracteres: {stats['max_caracteres']}")
-        click.echo("="*60 + "\n")
         
-        # Mostrar primeros registros
+        click.echo("\nEstadísticas del Conjunto de Datos:")
+        click.echo("-" * 40)
+        click.echo(f" Total de registros: {stats.get('total_registros', 0)}")
+        click.echo(f" Promedio de caracteres: {stats.get('promedio_caracteres', 0)}")
+        if 'min_caracteres' in stats and 'max_caracteres' in stats:
+            click.echo(f" Rango de longitud: {stats['min_caracteres']} a {stats['max_caracteres']} caracteres")
+        
+        data = ingestion.load_data()
         if data:
-            click.echo(" Primeros 3 registros:")
+            click.echo("\nExtracto de los primeros registros:")
             for i, text in enumerate(data[:3], 1):
-                preview = text[:100] + "..." if len(text) > 100 else text
+                preview = text[:80] + "..." if len(text) > 80 else text
                 click.echo(f"  {i}. {preview}")
-        
-        click.echo("\n Datos cargados exitosamente")
-        
-    except (FileNotFoundError, ValueError) as e:
-        click.echo(f"\n Error: {str(e)}", err=True)
-        sys.exit(1)
+                
+        click.echo("\n[INFO] Ingesta completada exitosamente.")
     except Exception as e:
-        click.echo(f"\n Error inesperado: {str(e)}", err=True)
-        logger.exception("Error en la ingesta de datos")
-        sys.exit(1)
-
-
-@cli.command()
-def info() -> None:
-    """Muestra información del sistema y formatos soportados."""
-    click.echo("\n" + "="*60)
-    click.echo("  INFORMACIÓN DEL SISTEMA")
-    click.echo("="*60)
-    click.echo("Sistema Inteligente de Análisis de Feedback")
-    click.echo("\n Formatos soportados:")
-    click.echo("  • CSV (.csv)")
-    click.echo("  • Excel (.xlsx)")
-    click.echo("  • JSON (.json)")
-    click.echo("  • Texto (.txt)")
-    click.echo("\n Ubicación de datos:")
-    click.echo("  Coloque los archivos en: data/samples/")
-    click.echo("\n Uso:")
-    click.echo("  python main.py ingest --file <ruta_archivo>")
-    click.echo("="*60 + "\n")
-
+        click.echo(f"\n[ERROR] Falla durante la ingesta: {e}")
 
 @cli.command()
 def validate() -> None:
-    """Valida archivos en la carpeta data/samples/."""
-    logger = logging.getLogger(__name__)
+    """Verifica que los archivos de muestra puedan leerse correctamente."""
+    click.echo("\n[INFO] Validando integridad de los datos de muestra...")
     data_dir = Path("data/samples")
     
     if not data_dir.exists():
-        click.echo(f" Carpeta no encontrada: {data_dir}")
+        click.echo("  [ERROR] Directorio data/samples/ no encontrado.")
         return
-    
-    valid_extensions = {'.csv', '.xlsx', '.json', '.txt'}
-    files = [f for f in data_dir.iterdir() if f.suffix.lower() in valid_extensions]
-    
+        
+    files = list(data_dir.glob("*"))
     if not files:
-        click.echo(f"  No hay archivos válidos en {data_dir}")
+        click.echo("  [INFO] No hay archivos en data/samples/ para validar.")
         return
-    
-    click.echo("\n" + "="*60)
-    click.echo(" VALIDACIÓN DE ARCHIVOS")
-    click.echo("="*60)
+        
+    click.echo(f"Se encontraron {len(files)} archivos.\n")
     
     for file_path in files:
         try:
             ingestion = DataIngestion(file_path)
-            data = ingestion.load_data()
-            click.echo(f"✓ {file_path.name}: {len(data)} registros")
+            stats = ingestion.get_stats()
+            click.echo(f"  [OK] {file_path.name} - {stats.get('total_registros', 0)} registros listos.")
         except Exception as e:
-            click.echo(f"✗ {file_path.name}: {str(e)}")
-    
-    click.echo("="*60 + "\n")
-
+            click.echo(f"  [ERROR] {file_path.name} - Falla en validación: {e}")
 
 @cli.command()
-@click.option(
-    '--file',
-    '-f',
-    type=click.Path(exists=True),
-    help='Ruta del archivo a procesar (CSV, Excel, JSON, TXT)'
-)
-@click.option(
-    '--show-processed',
-    '-s',
-    is_flag=True,
-    help='Mostrar textos procesados por el pipeline'
-)
+@click.option('--file', '-f', type=click.Path(exists=True), help='Ruta del archivo a analizar.')
+@click.option('--show-processed', is_flag=True, help='Muestra el texto en consola después de la lematización.')
 def process(file: str, show_processed: bool) -> None:
-    """
-    Flujo completo: Ingesta → Pipeline (Normalización) → Análisis de Sentimiento.
+    """Ejecuta el pipeline de NLP e inferencia completo por terminal."""
+    target_file = _resolve_input_file(file)
     
-    Procesa comentarios desde el inicio hasta obtener su polaridad emocional.
-    """
-    logger = logging.getLogger(__name__)
-    
-    if not file:
-        click.echo("\n Archivos disponibles en data/samples/:")
-        data_dir = Path("data/samples")
-        if data_dir.exists():
-            files = list(data_dir.glob("*"))
-            if files:
-                for i, f in enumerate(files, 1):
-                    click.echo(f"  {i}. {f.name}")
-            else:
-                click.echo("  No hay archivos de muestra")
-        
-        file = click.prompt("\n Ingrese la ruta del archivo")
+    click.echo("\n" + "=" * 60)
+    click.echo("  INICIANDO PIPELINE DE PROCESAMIENTO NLP")
+    click.echo("=" * 60)
     
     try:
-        # PASO 1: INGESTA DE DATOS
-        click.echo("\n" + "="*70)
-        click.echo("📥 PASO 1: INGESTA DE DATOS")
-        click.echo("="*70)
+        # FASE 1
+        click.echo("\n[1/3] Extrayendo y limpiando datos de origen...")
+        ingestion = DataIngestion(target_file)
+        raw_texts = ingestion.load_data()
+        click.echo(f"  ✓ {len(raw_texts)} registros cargados.")
         
-        ingestion = DataIngestion(file)
-        raw_comments = ingestion.load_data()
-        stats = ingestion.get_stats()
-        
-        click.echo(f"✓ Archivo: {Path(file).name}")
-        click.echo(f"✓ Registros cargados: {stats['total_registros']}")
-        click.echo(f"✓ Promedio caracteres: {stats['promedio_caracteres']}")
-        
-        # PASO 2: PIPELINE DE NORMALIZACIÓN
-        click.echo("\n" + "="*70)
-        click.echo(" PASO 2: PIPELINE DE NORMALIZACIÓN")
-        click.echo("="*70)
-        
+        # FASE 2
+        click.echo("\n[2/3] Aplicando normalización lingüística (spaCy)...")
         pipeline = EngineeringPipeline()
-        click.echo(" Procesando textos (limpieza, tokenización, lematización)...")
+        processed_texts = []
+        for text in raw_texts:
+            result = pipeline.process_text(text)
+            if result and result.clean_text:
+                processed_texts.append(result.clean_text)
+                if show_processed:
+                    click.echo(f"    Original: {text[:40]}...")
+                    click.echo(f"    Lematizado: {result.clean_text[:40]}...\n")
+                    
+        click.echo(f"  ✓ {len(processed_texts)} registros estructuralmente válidos.")
         
-        processed_results = []
-        for i, comment in enumerate(raw_comments, 1):
-            result = pipeline.process_text(comment)
-            processed_results.append(result)
-            if i % max(1, len(raw_comments) // 5) == 0:
-                click.echo(f"  {i}/{len(raw_comments)} comentarios procesados...")
-        
-        click.echo(f"✓ Procesamiento completado")
-        click.echo(f"✓ Tokens totales extraídos: {sum(r.token_count for r in processed_results)}")
-        
-        # Mostrar ejemplos si se solicita
-        if show_processed and processed_results:
-            click.echo("\n Ejemplo de procesamiento (primer comentario):")
-            ex = processed_results[0]
-            click.echo(f"  Original: {ex.original_text[:80]}...")
-            click.echo(f"  Limpio:   {ex.clean_text[:80]}...")
-            click.echo(f"  Tokens:   {ex.tokens[:5]}...")
-            click.echo(f"  Lemas:    {ex.lemmas[:5]}...")
-        
-        # PASO 3: ANÁLISIS DE SENTIMIENTO
-        click.echo("\n" + "="*70)
-        click.echo(" PASO 3: ANÁLISIS DE SENTIMIENTO")
-        click.echo("="*70)
-        
-        sentiment_analyzer = SentimentAnalyzer()
-        click.echo(" Analizando polaridad emocional...")
-        
-        # Usar los textos procesados (lematizados)
-        processed_texts = [r.processed_text for r in processed_results]
-        sentiments = sentiment_analyzer.analyze_batch(processed_texts)
-        
-        click.echo("✓ Análisis completado")
-        
-        # RESULTADOS FINALES
-        click.echo("\n" + "="*70)
-        click.echo(" RESULTADOS FINALES")
-        click.echo("="*70)
-        
-        # Contar sentimientos
-        sentiment_counts = {"POSITIVO": 0, "NEUTRO": 0, "NEGATIVO": 0}
-        total_score = 0
-        
-        for sentiment in sentiments:
-            label = sentiment.get("label", "NEUTRO")
-            score = sentiment.get("score", 0)
-            sentiment_counts[label] = sentiment_counts.get(label, 0) + 1
-            total_score += score
-        
-        # Mostrar estadísticas
-        total = len(sentiments)
-        click.echo(f"\nDistribución de Sentimientos:")
-        click.echo(f"   POSITIVO:  {sentiment_counts['POSITIVO']:3d} ({sentiment_counts['POSITIVO']*100/total:5.1f}%)")
-        click.echo(f"   NEUTRO:    {sentiment_counts['NEUTRO']:3d} ({sentiment_counts['NEUTRO']*100/total:5.1f}%)")
-        click.echo(f"   NEGATIVO:  {sentiment_counts['NEGATIVO']:3d} ({sentiment_counts['NEGATIVO']*100/total:5.1f}%)")
-        
-        avg_score = total_score / total if total > 0 else 0
-        click.echo(f"\nConfianza Promedio: {avg_score:.2f}%")
-        
-        # Mostrar detalle de algunos resultados
-        click.echo(f"\n Primeros 5 Análisis Detallados:")
-        for i, (comment, sentiment) in enumerate(zip(raw_comments[:5], sentiments[:5]), 1):
-            preview = comment[:60] + "..." if len(comment) > 60 else comment
-            label = sentiment.get("label", "NEUTRO")
-            score = sentiment.get("score", 0)
+        if not processed_texts:
+            click.echo("\n[ERROR] Ningún texto sobrevivió a la limpieza semántica.")
+            return
             
-            emoji = "😊" if label == "POSITIVO" else "😞" if label == "NEGATIVO" else "😐"
-            click.echo(f"\n  {i}. {emoji} [{label}] ({score}%)")
-            click.echo(f"     \"{preview}\"")
+        # FASE 3
+        click.echo("\n[3/3] Evaluando sentimiento (Modelo Transformers)...")
+        analyzer = SentimentAnalyzer()
+        results = analyzer.analyze_batch(processed_texts)
         
-        click.echo("\n" + "="*70)
-        click.echo(" PROCESAMIENTO COMPLETADO EXITOSAMENTE")
-        click.echo("="*70 + "\n")
+        positives = sum(1 for r in results if r.get('label') == 'POSITIVO')
+        negatives = sum(1 for r in results if r.get('label') == 'NEGATIVO')
+        neutrals = sum(1 for r in results if r.get('label') == 'NEUTRO')
         
-    except (FileNotFoundError, ValueError) as e:
-        click.echo(f"\n Error: {str(e)}", err=True)
-        sys.exit(1)
+        click.echo("\n  RESUMEN EJECUTIVO DE TERMINAL:")
+        click.echo("  ------------------------------")
+        click.echo(f"  Volumen total evaluado: {len(results)}")
+        click.echo(f"  😊 Positivos:  {positives}")
+        click.echo(f"  😐 Neutros:    {neutrals}")
+        click.echo(f"  😞 Negativos:  {negatives}")
+        
     except Exception as e:
-        click.echo(f"\n Error inesperado: {str(e)}", err=True)
-        logger.exception("Error en el flujo de procesamiento")
-        sys.exit(1)
+        click.echo(f"\n[ERROR] Falla crítica durante la ejecución en cadena: {e}")
 
+@cli.command()
+def info() -> None:
+    """Muestra la configuración y dependencias del ecosistema."""
+    click.echo("\n" + "=" * 60)
+    click.echo("  INFORMACIÓN TÉCNICA DEL SISTEMA")
+    click.echo("=" * 60)
+    click.echo("\nPlataforma de Auditoría de PLN e Inteligencia Artificial")
+    
+    click.echo("\n Formatos Nativos Soportados:")
+    click.echo("  • CSV (.csv)    - Ideal para exportaciones de bases de datos")
+    click.echo("  • Excel (.xlsx) - Reportes corporativos")
+    click.echo("  • JSON (.json)  - Datos estructurados provenientes de APIs")
+    click.echo("  • Texto (.txt)  - Registros en texto plano directo")
+    
+    click.echo("\n Ubicación de Carga de Lotes:")
+    click.echo("  Directorio absoluto: data/samples/")
+    
+    click.echo("\n Listado de Comandos Disponibles:")
+    click.echo("  python main.py dashboard")
+    click.echo("  python main.py process --file <ruta_archivo>")
+    click.echo("  python main.py process --file <ruta_archivo> --show-processed")
+    click.echo("  python main.py ingest --file <ruta_archivo>")
+    click.echo("  python main.py validate")
+    click.echo("  python main.py --help")
+    click.echo("\n" + "=" * 60)
 
-
-def main() -> None:
-    """Punto de entrada de la aplicación."""
+if __name__ == '__main__':
     cli()
-
-
-if __name__ == "__main__":
-    main()

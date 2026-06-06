@@ -1,35 +1,44 @@
 # Sistema Inteligente de Análisis de Feedback y Sentimiento del Cliente
 
-Este sistema modular de Procesamiento de Lenguaje Natural (PLN) ha sido desarrollado en Python como cumplimiento del **IV Proyecto de Investigación Dirigida (PID)** para el curso de Inteligencia Artificial I de la Universidad Nacional de Costa Rica, Campus Sarapiquí.
+Un proyecto en Python para el análisis automático de reseñas y feedback en español, desarrollado como entrega del **III Proyecto de Investigación Dirigida (PID)** para la asignatura de Inteligencia Artificial — Universidad Nacional de Costa Rica, Campus Sarapiquí.
 
-El software realiza ingesta por lotes de opiniones de comercio electrónico, aplica normalización avanzada (limpieza, tokenización, remoción de *stop words*, lematización) y clasifica la polaridad del sentimiento, desplegando un dashboard estadístico visual enfocado en la toma de decisiones gerenciales.
+Este repositorio contiene un pipeline de procesamiento de lenguaje natural que ingiere lotes de opiniones, normaliza y lematiza los textos, y clasifica su polaridad (Positivo / Neutro / Negativo). Además incluye un dashboard para visualización de métricas y soporte para exportar reportes.
 
-## Aporte: Pipeline de Ingeniería
+## Índice
 
-La sección de pipeline implementa la limpieza, tokenización avanzada, remoción de *stop words* y lematización de opiniones en español mediante spaCy. Esta capa prepara los textos normalizados para que puedan ser usados posteriormente por el análisis de sentimiento y las visualizaciones del sistema.
+- [Estructura del Repositorio](#-estructura-del-repositorio)
+- [Características Principales](#-características-principales)
+- [Requisitos de Instalación](#-requisitos-de-instalación)
+- [Ejecución y Pruebas](#-ejecución-y-pruebas)
+- [Ingesta de Datos](#-ingesta-de-datos)
 
 ## Estructura del Repositorio
 
 ```text
 EIF-4200-PID-III/
-│
-├── data/                  # Carpeta para colocar los archivos .txt, .csv o .xlsx
-│   └── samples/           # Datos de prueba de reseñas de clientes
-│
-├── src/                   # Código fuente del sistema inteligente
-│   ├── data.py            # Clase para ingesta de datos (CSV, Excel, TXT)
-│   ├── pipeline.py        # Clase para limpieza, tokenización y lematización
-│   ├── sentiment.py       # Clase para análisis de polaridad (Positivo/Neutro/Negativo)
-│   └── dashboard.py       # Clase para generación de gráficos y WordCloud
-│
-├── tests/                 # Pruebas unitarias para cada módulo con pytest
-│
-├── main.py                # Punto de entrada de la aplicación (Consola/Orquestador)
-├── requirements.txt       # Dependencias del proyecto
-├── .gitignore             # Archivos omitidos en Git
-├── pytest.ini             # Configuración de pytest para pruebas unitarias
-└── README.md              # Documentación de instalación y uso
+├── data/                  # Datos de entrada (.csv, .xlsx, .json, .txt)
+│   └── samples/           # Archivos de ejemplo
+├── src/                   # Código fuente
+│   ├── __init__.py
+│   ├── data.py            # Carga e ingestión de archivos
+│   ├── pipeline.py        # Limpieza, tokenización, lematización
+│   ├── sentiment.py       # Clasificación de polaridad
+│   └── dashboard.py       # Visualización (Streamlit / Matplotlib)
+├── tests/                 # Pruebas unitarias (pytest)
+├── main.py                # Orquestador / CLI
+├── requirements.txt       # Dependencias
+├── pytest.ini
+└── README.md
 ```
+
+## Características Principales
+
+- **Pipeline Lingüístico Avanzado:** Implementa limpieza profunda, tokenización, remoción de *stop words* y lematización morfológica en español mediante la librería `spaCy` (`es_core_news_lg`).
+- **Inferencia con LLMs (Transformers):** Sustituye los diccionarios estadísticos por el modelo **BETO** de Hugging Face, una arquitectura BERT optimizada para captar sarcasmo, negaciones y matices en español.
+- **Renderizado "Tema Agnóstico":** Las métricas y gráficos estadísticos (Matplotlib y Seaborn) han sido programados utilizando el canal Alfa (Transparencia RGBA) e inyección de variables CSS nativas. Esto permite que **toda la aplicación se adapte automáticamente al tema Claro u Oscuro** del sistema del usuario sin necesidad de recargar la interfaz.
+- **Ingesta Dinámica:** Soporta tanto el análisis de lotes desde el servidor (`data/samples/`) como la carga en caliente de archivos externos (`.csv`, `.xlsx`, `.json`, `.txt`) directamente desde la interfaz gráfica.
+- **Manejo Robusto de Excepciones:** Tolerancia a fallos para archivos corruptos, textos vacíos o ruido no lingüístico, previniendo interrupciones en la ejecución del servidor.
+- **Auditoría Exportable:** Capacidad de generar un Dataframe consolidado con los textos procesados, su sentimiento detectado y nivel de confianza matemática, exportable instantáneamente a un reporte CSV.
 
 ## Requisitos de Instalación (Entorno Conda)
 
@@ -75,83 +84,71 @@ python -m spacy download es_core_news_lg
 
 > **Nota**: En caso de que la computadora tenga limitaciones de memoria, se recomienda descargar el modelo de tamaño mediano `es_core_news_md` o el de tamaño pequeño `es_core_news_sm` y ajustar el código para cargar ese modelo en lugar del grande.
 
+## Ejecución y Pruebas
 
+Para arrancar el sistema, simplemente corra el siguiente comando en la terminal con el entorno virtual activo:
+
+```bash
+python main.py dashboard
+```
+
+### Otros comandos disponibles
+
+> **Nota:** *Los comandos expuestos en el orquestador están implementados en [main.py](main.py#L1).*
+
+```bash
+# Ingesta de datos desde un archivo específico
+python main.py ingest --file data/samples/comentarios_clientes.csv
+
+# Procesamiento de datos con opción de mostrar resultados intermedios
+python main.py process --file data/samples/comentarios_clientes.csv
+
+# Procesamiento de datos de un archivo con visualización de textos procesados por el pipeline
+python main.py process --file data/samples/resenas_productos.xlsx --show-processed
+
+# Procesamiento de datos desde archivos con diferentes formatos
+python main.py process --file data/samples/opiniones_empresas.json
+python main.py process --file data/samples/resenas_clientes.txt
+
+# Validación y información del sistema
+python main.py validate
+python main.py info
+
+# Mostrar ayuda y comandos disponibles
+python main.py --help
+```
+
+### Ejecución de pruebas unitarias
+
+Con el entorno activo, ejecutar:
+
+```bash
+pytest -q
+```
 
 ## Ingesta de Datos
 
 El sistema incluye un módulo robusto de ingesta de datos que procesa lotes de comentarios desde múltiples fuentes.
 
 ### Formatos Soportados
+
 - **CSV (.csv)**: Archivos de valores separados por comas
 - **Excel (.xlsx)**: Archivos de hojas de cálculo
 - **JSON (.json)**: Archivos de notación de objetos JavaScript
 - **TXT (.txt)**: Archivos de texto plano
 
-
-
-### Archivos de Ejemplo en data/samples/
+### Archivos de ejemplo en `data/samples/`
 
 | Archivo | Registros | Formato |
-|---------|-----------|---------|
-| `comentarios_clientes.csv` | 15 | CSV |
-| `resenas_productos.xlsx` | 8 | Excel |
-| `opiniones_empresas.json` | 5 | JSON |
-| `resenas_clientes.txt` | 17 | TXT |
+|---------|------------------|---------|
+| comentarios_clientes.csv | 15 | CSV |
+| resenas_productos.xlsx   | 8  | Excel |
+| opiniones_empresas.json  | 5  | JSON |
+| resenas_clientes.txt     | 17 | TXT |
 
-## Flujo Completo: De Principio a Fin
+### Flujo de procesamiento
 
-El sistema incluye el comando **`process`** que ejecuta el pipeline completo en un único comando:
-
-
-
-## Ejecución del Sistema
-
-Para arrancar el sistema, simplemente corra el siguiente comando en la terminal con el entorno virtual activo:
-
-# Procesar un archivo cualquiera
-python main.py process --file data/samples/comentarios_clientes.csv
-
-# Mostrar también los textos procesados por el pipeline
-python main.py process --file data/samples/resenas_productos.xlsx --show-processed
-
-# Otros formatos (todos funcionan igual)
-python main.py process --file data/samples/opiniones_empresas.json
-python main.py process --file data/samples/resenas_clientes.txt
-```
-
-
-### Características Principales
-
-- ✅ **Detección automática de columnas**: Busca automáticamente columnas con textos
-- ✅ **Filtrado de valores nulos**: Elimina automáticamente registros vacíos
-- ✅ **Estadísticas**: Calcula caracteres, palabras y distribución
-- ✅ **Manejo robusto de errores**: Valida formatos y existencia de archivos
-- ✅ **Procesamiento por lotes**: Simula auditoría real de múltiples registros
-- ✅ **Codificación UTF-8**: Soporta caracteres acentuados y especiales
-- ✅ **Normalización en Spanish**: Lematización y limpieza con spaCy
-- ✅ **Análisis con BETO**: Modelo BERT especializado para sentimientos en español
-- ✅ **Resultados emoji-enhanced**: Indicadores visuales de sentimiento 😊😐😞
-
-
-## Ejecución de Pruebas Unitarias
-Para ejecutar las pruebas unitarias, asegúrese de que el entorno virtual esté activo y ejecute:
-
-```bash
-pytest -q
-```
-
-
-# 1️⃣ ACTIVAR EL AMBIENTE CONDA
-conda activate PIDIII
-
-# 2️⃣ INSTALAR DEPENDENCIAS (si no lo has hecho)
-pip install -r requirements.txt
-
-# 3️⃣ INSTALAR DEPENDENCIAS ADICIONALES PARA EL DASHBOARD
-pip install streamlit plotly seaborn
-
-# 4️⃣ DESCARGAR MODELOS SPACY Y TRANSFORMERS (primera vez solo)
-python -m spacy download es_core_news_lg
-
-# 5️⃣ EJECUTAR EL DASHBOARD
-python -m streamlit run app_dashboard.py
+1. Ingesta del archivo (módulo `data.py`).
+2. Normalización y limpieza (módulo `pipeline.py`).
+3. Clasificación de sentimiento (módulo `sentiment.py`).
+4. Visualización y exportación de resultados (`dashboard.py`, `main.py`).

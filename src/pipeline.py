@@ -107,7 +107,7 @@ class EngineeringPipeline:
             normalized_words = {self._normalize_word(word) for word in extra_stop_words}
             self.stop_words.update(word for word in normalized_words if word)
 
-    def _load_language_model(self, model_name: str) -> Language | None:
+    def _load_language_model(self, model_name: str) -> Language | None: # type: ignore
         if spacy is None:
             return None
 
@@ -196,10 +196,10 @@ class EngineeringPipeline:
 
     def process_dataframe(
         self,
-        dataframe: pd.DataFrame,
+        dataframe: pd.DataFrame, # type: ignore
         text_column: str,
         prefix: str = "nlp",
-    ) -> pd.DataFrame:
+    ) -> pd.DataFrame: # type: ignore
         """
         Add preprocessing columns to a reviews DataFrame.
         """
