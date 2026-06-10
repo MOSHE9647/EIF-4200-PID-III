@@ -1,6 +1,7 @@
 # Motor de PLN y Procesamiento de Lenguaje
 transformers>=4.0.0 # Para modelos de lenguaje preentrenados
 torch>=1.7.0        # Requerido por transformers para el backend de PyTorch (Único backend necesario)
+torchvision>=0.8.0  # Para tareas de visión por computadora (Si se requieren características de visión)
 sentencepiece       # Requerido internamente por el tokenizador del modelo BETO
 click>=8.0.0        # Para la creación de interfaces de línea de comandos (Menús interactivos)
 spacy>=3.7.0        # Para procesamiento de lenguaje natural avanzado (Pipeline lingüístico)
@@ -12,6 +13,9 @@ openpyxl>=3.1.0     # Para leer y escribir archivos Excel (.xlsx)
 # Visualización de Datos y Dashboard
 matplotlib>=3.7.0   # Para visualización de datos y gráficos de barras/pastel
 wordcloud>=1.9.0    # Para generar nubes de palabras dinámicas
+plotly>=5.0.0       # Para gráficos interactivos y visualizaciones avanzadas
+seaborn>=0.12.0     # Para visualizaciones estadísticas avanzadas
+streamlit>=1.0.0    # Para crear dashboards interactivos y visualizaciones en tiempo real
 
 # Ejecución de Pruebas
 pytest>=7.0.0       # Para pruebas unitarias y de integración

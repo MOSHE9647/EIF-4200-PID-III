@@ -1,0 +1,16 @@
+id,fecha,cliente,comentario,calificacion
+1,2025-05-01,Juan Pérez,Excelente producto. Superó todas mis expectativas.,5
+2,2025-05-01,María García,El producto es muy bueno pero la entrega fue lenta.,4
+3,2025-05-02,Carlos López,Decepcionante. No funciona como se prometía.,2
+4,2025-05-02,Ana Martínez,Muy satisfied con la compra. Lo recomiendo totalmente.,5
+5,2025-05-03,Roberto Silva,Producto aceptable. Esperaba más calidad.,3
+6,2025-05-03,Laura Domínguez,Horrible experiencia. El producto llegó dañado.,1
+7,2025-05-04,Miguel Rodríguez,Es un producto decente. Nada del otro mundo.,3
+8,2025-05-04,Isabel Sánchez,Perfecto. Exactamente lo que necesitaba.,5
+9,2025-05-05,Diego Hernández,No es lo que esperaba. Desaprovechado mi dinero.,2
+10,2025-05-05,Sofía Torres,Bueno pero podría mejorar en varios aspectos.,3
+11,2025-05-06,Pablo Moreno,Excelente relación precio-calidad. Muy contento.,5
+12,2025-05-06,Elena Jiménez,Pésimo servicio al cliente. Nadie responde mis mensajes.,1
+13,2025-05-07,Andrés Castillo,Producto mediocre. Hay opciones mejores.,2
+14,2025-05-07,Valentina Rivas,Maravilloso. Superó completamente mis expectativas.,5
+15,2025-05-08,Mateo Vega,Terrible. Una completa pérdida de dinero.,1
