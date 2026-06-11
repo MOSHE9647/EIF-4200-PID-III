@@ -4,6 +4,8 @@ Un proyecto en Python para el análisis automático de reseñas y feedback en es
 
 Este repositorio contiene un pipeline de procesamiento de lenguaje natural que ingiere lotes de opiniones, normaliza y lematiza los textos, y clasifica su polaridad (Positivo / Neutro / Negativo). Además incluye un dashboard para visualización de métricas y soporte para exportar reportes.
 
+En el siguiente enlace se encuentra el video de la defensa del proyecto: [Video de Defensa](https://www.youtube.com/watch?v=cIln89QBZmQ).
+
 ## Índice
 
 - [Estructura del Repositorio](#-estructura-del-repositorio)
